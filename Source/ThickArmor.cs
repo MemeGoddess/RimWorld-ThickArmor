@@ -14,9 +14,7 @@ namespace ThickArmor
 		{
 			// initialize settings
 			settings = GetSettings<Settings>();
-#if DEBUG
-			Harmony.DEBUG = true;
-#endif
+
 			Harmony harmony = new Harmony("uuugggg.rimworld.ThickArmor.main");
 			
 			harmony.PatchAll();
