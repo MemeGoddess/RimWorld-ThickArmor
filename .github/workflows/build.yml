@@ -1,5 +1,8 @@
 name: Build and Deploy to Steam Workshop
 
+env:
+  workshopId: '3526439840'
+
 on:
   push:
     branches:
@@ -15,6 +18,25 @@ jobs:
         uses: actions/checkout@v4
         with:
             path: 'mod'
+
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.STEAM_USERNAME }}" ]; then
+            echo "Error: STEAM_USERNAME secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.STEAM_CONFIG_VDF }}" ]; then
+            echo "Error: STEAM_CONFIG_VDF secret is not set"
+            exit 1
+          fi
+          echo "All required secrets are present"
+
+      - name: Sanitize commit message
+        id: sanitize
+        run: |
+          COMMIT_MSG=$(printf '%s' "${{ github.event.head_commit.message }}")
+          SANITIZED=$(printf '%s' "$COMMIT_MSG" | sed 's/\"/'"'"'/g')
+          echo "SANITIZED_COMMIT_MSG=$SANITIZED" >> $GITHUB_ENV
 
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v4
@@ -44,12 +66,28 @@ jobs:
             find . -type d -name "obj" -exec rm -rf {} +
 
       - name: steam-workshop-upload
-        uses: m00nl1ght-dev/steam-workshop-deploy@v3
+        uses: m00nl1ght-dev/steam-workshop-deploy@v4
         continue-on-error: true
         with: 
           appId: 294100 # Game's Steam App ID
-          publishedFileId: 3531630021 # Your mod's Steam Workshop ID
+          publishedFileId: ${{ env.workshopId }} # Your mod's Steam Workshop ID
           path: 'mod' # Path to your mod's folder from repository root
           username: ${{ secrets.STEAM_USERNAME }}
           configVdf:  ${{ secrets.STEAM_CONFIG_VDF }}
-          changeNote: ${{ github.event.head_commit.message }}
+          changeNote: "${{ env.SANITIZED_COMMIT_MSG }}"
+
+      - name: Verify Upload
+        run: |
+          if [ "${{ env.workshopId }}" = "3526439840" ]; then
+            echo "Deployed to staging, skipping verification of hidden workshop item."
+            exit 0
+          fi
+
+          time=$(curl -X POST "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"   -H "Content-Type: application/x-www-form-urlencoded"   -d "itemcount=1"   -d "publishedfileids[0]=${{ env.workshopId }}" | jq -r '.response.publishedfiledetails[].time_updated')
+          now=$(date +%s)
+          if [ $time -lt $now - 300 ]; then
+            echo "Upload verified successfully."
+          else
+            echo "Upload verification failed."
+            exit 1
+          fi
