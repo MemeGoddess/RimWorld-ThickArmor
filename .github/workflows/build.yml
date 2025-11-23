@@ -1,7 +1,7 @@
 name: Build and Deploy to Steam Workshop
 
 env:
-  workshopId: '3526439840'
+  workshopId: '3531630021'
 
 on:
   push:
