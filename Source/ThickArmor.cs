@@ -17,7 +17,7 @@ namespace ThickArmor
 
 			Harmony harmony = new Harmony("uuugggg.rimworld.ThickArmor.main");
 			
-			harmony.PatchAll();
+			harmony.PatchAll(Assembly.GetExecutingAssembly());
 		}
 
 		public override void DoSettingsWindowContents(Rect inRect)
